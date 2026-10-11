@@ -8,6 +8,9 @@ const {
   deleteTask,
 } = require('../controllers/taskController');
 const { protect, authorizeRoles } = require('../middleware/authMiddleware');
+const { apiLimiter } = require('../middleware/rateLimiters');
+
+router.use(apiLimiter);
 
 router.route('/')
   .get(protect, getTasks)
