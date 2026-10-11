@@ -60,7 +60,7 @@ export const AuthForm = ({
       className="page-transition-enter"
       style={{
         display: "grid",
-        gridTemplateColumns: "repeat(auto-fit, minmax(310px, 1fr))",
+        gridTemplateColumns: "repeat(auto-fit, minmax(min(310px, 100%), 1fr))",
         gap: "28px",
         alignItems: "stretch",
       }}
@@ -74,8 +74,7 @@ export const AuthForm = ({
           display: "flex",
           flexDirection: "column",
           justifyContent: "space-between",
-          background:
-            "linear-gradient(145deg, rgba(99, 102, 241, 0.12) 0%, rgba(168, 85, 247, 0.06) 55%, rgba(6, 182, 212, 0.08) 100%)",
+          background: "var(--hero-surface)",
         }}
       >
         <div>
@@ -180,7 +179,9 @@ export const AuthForm = ({
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "1fr 1fr",
+              // minmax(0, 1fr) lets each track shrink below its min-content
+              // width so long labels wrap instead of being clipped at 320px
+              gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
               gap: "10px",
             }}
           >
@@ -348,11 +349,14 @@ export const AuthForm = ({
                 type="button"
                 onClick={() => setShowPassword((prev) => !prev)}
                 aria-label="Toggle password visibility"
+                className="mini-action"
                 style={{
                   position: "absolute",
-                  right: "10px",
+                  right: "8px",
                   top: "50%",
                   transform: "translateY(-50%)",
+                  width: "28px",
+                  height: "28px",
                   background: "transparent",
                   border: "none",
                   color: "var(--text-muted)",
@@ -360,6 +364,8 @@ export const AuthForm = ({
                   padding: "4px",
                   display: "flex",
                   alignItems: "center",
+                  justifyContent: "center",
+                  borderRadius: "8px",
                 }}
               >
                 {showPassword ? (
@@ -422,7 +428,7 @@ export const AuthForm = ({
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
+                  gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
                   gap: "12px",
                 }}
               >
@@ -522,10 +528,12 @@ export const AuthForm = ({
                 style={{
                   background: "none",
                   border: "none",
-                  color: "var(--accent-primary)",
+                  color: "var(--link-accent)",
                   fontWeight: 700,
                   cursor: "pointer",
-                  padding: 0,
+                  padding: "6px 4px",
+                  minHeight: "24px",
+                  borderRadius: "6px",
                 }}
               >
                 {type === "login" ? "Register now" : "Sign in"}

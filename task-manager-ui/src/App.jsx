@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Analytics } from "@vercel/analytics/react";
 import { Dashboard } from "./Dashboard";
 import { TaskManagement } from "./TaskManagement";
@@ -16,6 +16,10 @@ import {
 export const API_BASE_URL = BASE_URL;
 
 const App = () => {
+  const historySeeded = useRef(false);
+  // Set while a popstate-driven view change is being applied, so the sync
+  // effect below does not push a duplicate entry and destroy Forward history.
+  const popStateDriven = useRef(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState(() => {
     try {
@@ -39,8 +43,41 @@ const App = () => {
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
+    document.documentElement.style.colorScheme =
+      theme === "light" ? "light" : "dark";
     localStorage.setItem("pulsetask_theme", theme);
   }, [theme]);
+
+  // Keep the browser history entry in sync with the active view so the
+  // Back / Forward buttons move between Login, My Tasks and Dashboard
+  // instead of dropping the user out of the app.
+  useEffect(() => {
+    if (popStateDriven.current) {
+      popStateDriven.current = false;
+      return;
+    }
+    const state = { pulsetaskView: view };
+    if (!historySeeded.current) {
+      historySeeded.current = true;
+      window.history.replaceState(state, "");
+      return;
+    }
+    window.history.pushState(state, "");
+  }, [view]);
+
+  useEffect(() => {
+    const handlePopState = (event) => {
+      const next = event.state?.pulsetaskView;
+      if (!next) return;
+      const authed = Boolean(localStorage.getItem("token"));
+      const target =
+        authed && (next === "login" || next === "register") ? "tasks" : next;
+      popStateDriven.current = true;
+      setView(target);
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
 
   useEffect(() => {
     if (token) {
@@ -120,6 +157,10 @@ const App = () => {
         padding: "24px 16px 56px",
       }}
     >
+      <a className="skip-link" href="#main-content">
+        Skip to main content
+      </a>
+
       {/* Ambient Background Motion & Aurora Liquid Canvas (SVGator #6, #17, #20) */}
       <div className="ambient-canvas" aria-hidden="true">
         <div className="ambient-grid" />
@@ -176,8 +217,9 @@ const App = () => {
                     padding: "3px 9px",
                     borderRadius: "9999px",
                     background: "rgba(99, 102, 241, 0.16)",
-                    color: "var(--accent-primary)",
+                    color: "var(--accent-on-tint)",
                     border: "1px solid rgba(99, 102, 241, 0.3)",
+                    whiteSpace: "nowrap",
                   }}
                 >
                   MOTION UI
@@ -211,6 +253,7 @@ const App = () => {
               type="button"
               onClick={() => setEnableTilt((prev) => !prev)}
               className="btn-secondary-animated"
+              aria-pressed={enableTilt}
               title="Toggle 3D Perspective Card Tilt"
               style={{
                 padding: "8px 12px",
@@ -226,6 +269,7 @@ const App = () => {
               type="button"
               onClick={() => setPauseAmbient((prev) => !prev)}
               className="btn-secondary-animated"
+              aria-pressed={pauseAmbient}
               title="Pause or Resume Ambient Background Motion"
               style={{
                 padding: "8px 12px",
@@ -240,7 +284,11 @@ const App = () => {
               type="button"
               onClick={toggleTheme}
               className="btn-secondary-animated"
-              aria-label="Switch Theme"
+              aria-label={
+                theme === "dark"
+                  ? "Switch theme to Light Clay"
+                  : "Switch theme to Dark Glass"
+              }
               style={{
                 padding: "8px 14px",
                 fontSize: "0.78rem",
@@ -268,28 +316,28 @@ const App = () => {
               marginBottom: "22px",
               background:
                 messageType === "error"
-                  ? "rgba(244, 63, 94, 0.14)"
+                  ? "var(--feedback-error-bg)"
                   : messageType === "success"
-                  ? "rgba(16, 185, 129, 0.14)"
-                  : "rgba(99, 102, 241, 0.14)",
+                  ? "var(--feedback-success-bg)"
+                  : "var(--feedback-info-bg)",
               border:
                 messageType === "error"
-                  ? "1px solid rgba(244, 63, 94, 0.4)"
+                  ? "1px solid var(--feedback-error-border)"
                   : messageType === "success"
-                  ? "1px solid rgba(16, 185, 129, 0.4)"
-                  : "1px solid rgba(99, 102, 241, 0.4)",
+                  ? "1px solid var(--feedback-success-border)"
+                  : "1px solid var(--feedback-info-border)",
               color:
                 messageType === "error"
-                  ? "#fb7185"
+                  ? "var(--feedback-error-fg)"
                   : messageType === "success"
-                  ? "#10b981"
-                  : "var(--accent-primary)",
+                  ? "var(--feedback-success-fg)"
+                  : "var(--feedback-info-fg)",
               fontWeight: 600,
               fontSize: "0.9rem",
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-              <span>
+              <span aria-hidden="true">
                 {messageType === "error"
                   ? "⚠"
                   : messageType === "success"
@@ -301,23 +349,30 @@ const App = () => {
             <button
               type="button"
               onClick={() => setMessage("")}
+              className="mini-action"
+              aria-label="Dismiss notification"
               style={{
                 background: "none",
                 border: "none",
                 color: "currentColor",
                 cursor: "pointer",
                 fontWeight: 700,
+                fontSize: "0.95rem",
+                borderRadius: "8px",
               }}
             >
-              ✕
+              <span aria-hidden="true">✕</span>
             </button>
           </div>
         )}
 
+        {/* Main content landmark (WCAG 1.3.1 / 2.4.1) */}
+        <main id="main-content">
         {/* Navigation Bar (Authenticated vs Guest) */}
         {isLoggedIn ? (
           <>
             <nav
+              aria-label="Workspace views and account"
               style={{
                 display: "flex",
                 flexWrap: "wrap",
@@ -397,7 +452,7 @@ const App = () => {
                       style={{
                         color:
                           user?.role === "manager"
-                            ? "#a855f7"
+                            ? "var(--manager-fg)"
                             : "var(--accent-primary)",
                         textTransform: "uppercase",
                       }}
@@ -541,6 +596,7 @@ const App = () => {
             )}
           </>
         )}
+        </main>
       </div>
 
       <Analytics />

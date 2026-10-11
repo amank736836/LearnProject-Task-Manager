@@ -1,5 +1,4 @@
 
-````markdown
 # 📝 Task Manager API (MERN Stack with Roles & Analytics)
 
 This project implements a **Task Manager API** with **user authentication**, **role-based access control**, full **CRUD operations** for tasks, **filtering**, **searching**, **sorting**, **pagination**, and **dashboard analytics**.
@@ -82,7 +81,7 @@ This project implements a **Task Manager API** with **user authentication**, **r
 
 ```js
 export const API_BASE_URL = "https://task-manager-b8rc.onrender.com";
-````
+```
 
 ---
 
@@ -309,6 +308,38 @@ Response (example):
 * 📱 Responsive UI with inline CSS
 * 🔒 Secure password hashing & JWT auth
 * 🧪 Easily testable using Postman or frontend
+
+---
+
+## 🧪 Quality Assurance & Testing
+
+A full QA audit (responsive design, UI consistency, functionality, WCAG 2.2 AA accessibility,
+cross-viewport rendering, performance and edge cases) was executed in a real browser and is
+documented in **[`docs/QA-AUDIT-REPORT.md`](docs/QA-AUDIT-REPORT.md)**, with screenshots in
+[`docs/qa-evidence/`](docs/qa-evidence).
+
+**Highlights after the audit's fixes**
+
+- **120 rendered states** checked across 320 → 2560 px (dark *and* light themes): 0 horizontal
+  overflow, 0 clipped text, 0 undersized touch targets.
+- **0 axe-core violations** (WCAG 2.0/2.1/2.2 A + AA) across 13 page/theme states.
+- **41/41 functional assertions** and **22/22 committed regression checks** passing.
+- CLS `0.0005`, LCP ≈ 0.5–0.9 s, no long tasks, no memory growth over repeated navigation.
+
+### Running the regression suite
+
+```bash
+cd task-manager-ui
+npm install
+npm run build && npm run preview     # http://localhost:4173 in one shell
+
+npm run test:regression              # in a second shell
+```
+
+The suite auto-detects the browser: it attaches to an already-running Chrome when
+`PW_CDP_URL` is set, launches `CHROME_PATH` when provided, otherwise it uses Playwright's
+bundled Chromium (run `npx playwright install chromium` once). Set
+`AXE_PATH=./node_modules/axe-core/axe.min.js` to also run the axe-core accessibility gate.
 
 ---
 

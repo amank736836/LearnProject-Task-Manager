@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# QA regression artefacts (screenshots + machine-readable results)
+tests/screenshots/
+tests/regression-results.json
