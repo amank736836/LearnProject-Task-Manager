@@ -4,9 +4,21 @@ import { StatusAnimatedIcon } from "./components/AnimatedIcons";
 import { TiltCard } from "./components/TiltCard";
 
 const STATUS_CONFIG = {
-  completed: { label: "Completed", color: "#10b981" },
-  "in-progress": { label: "In-Progress", color: "#3b82f6" },
-  pending: { label: "Pending", color: "#f59e0b" },
+  completed: {
+    label: "Completed",
+    color: "#10b981",
+    text: "var(--status-completed-fg)",
+  },
+  "in-progress": {
+    label: "In-Progress",
+    color: "#3b82f6",
+    text: "var(--status-progress-fg)",
+  },
+  pending: {
+    label: "Pending",
+    color: "#f59e0b",
+    text: "var(--status-pending-fg)",
+  },
 };
 
 /**
@@ -24,6 +36,7 @@ const AnimatedSvgDonut = ({ tasksByStatus = {}, total = 0 }) => {
       key,
       label: STATUS_CONFIG[key].label,
       color: STATUS_CONFIG[key].color,
+      text: STATUS_CONFIG[key].text,
       count,
       ratio,
       pct: Math.round(ratio * 100),
@@ -111,7 +124,7 @@ const AnimatedSvgDonut = ({ tasksByStatus = {}, total = 0 }) => {
             style={{
               fontSize: "1.95rem",
               fontWeight: 800,
-              color: activeSegment ? activeSegment.color : "var(--text-primary)",
+              color: activeSegment ? activeSegment.text : "var(--text-primary)",
               lineHeight: 1.1,
             }}
           >
@@ -179,7 +192,7 @@ const AnimatedSvgDonut = ({ tasksByStatus = {}, total = 0 }) => {
                 style={{
                   fontWeight: 700,
                   fontSize: "0.95rem",
-                  color: seg.color,
+                  color: seg.text,
                 }}
               >
                 {seg.count}
@@ -243,7 +256,7 @@ export const Dashboard = ({
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+          gridTemplateColumns: "repeat(auto-fit, minmax(min(220px, 100%), 1fr))",
           gap: "20px",
         }}
       >
@@ -327,7 +340,7 @@ export const Dashboard = ({
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+          gridTemplateColumns: "repeat(auto-fit, minmax(min(200px, 100%), 1fr))",
           gap: "18px",
           marginBottom: "26px",
         }}
@@ -337,28 +350,28 @@ export const Dashboard = ({
             title: "Total Tasks",
             value: total,
             subtitle: "Tracked in workspace",
-            color: "#6366f1",
+            color: "var(--accent-on-tint)",
             status: "in-progress",
           },
           {
             title: "Completion Rate",
             value: `${completionRate}%`,
             subtitle: `${completedCount} tasks delivered`,
-            color: "#10b981",
+            color: "var(--status-completed-fg)",
             status: "completed",
           },
           {
             title: "In-Progress",
             value: inProgressCount,
             subtitle: "Active execution",
-            color: "#3b82f6",
+            color: "var(--status-progress-fg)",
             status: "in-progress",
           },
           {
             title: "Pending Queue",
             value: pendingCount,
             subtitle: "Awaiting kickoff",
-            color: "#f59e0b",
+            color: "var(--status-pending-fg)",
             status: "pending",
           },
         ].map((kpi, idx) => (
@@ -469,10 +482,11 @@ export const Dashboard = ({
               className="font-mono-code"
               style={{
                 fontSize: "0.75rem",
-                color: "#10b981",
+                color: "var(--status-completed-fg)",
                 padding: "3px 9px",
                 borderRadius: "9999px",
-                background: "rgba(16, 185, 129, 0.14)",
+                background: "var(--status-completed-bg)",
+                whiteSpace: "nowrap",
               }}
             >
               LIVE SVG TELEMETRY
@@ -568,7 +582,7 @@ export const Dashboard = ({
                       className="liquid-progress-fill"
                       style={{
                         width: `${pct}%`,
-                        background: cfg.color,
+                        background: cfg.text,
                       }}
                     />
                   </div>
@@ -623,7 +637,8 @@ export const Dashboard = ({
                 fontSize: "0.76rem",
                 fontWeight: 700,
                 background: "rgba(99, 102, 241, 0.16)",
-                color: "var(--accent-primary)",
+                color: "var(--accent-on-tint)",
+                whiteSpace: "nowrap",
               }}
             >
               {Object.keys(stats.allUsersStats).length} Active Members
@@ -634,7 +649,7 @@ export const Dashboard = ({
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(245px, 1fr))",
+                gridTemplateColumns: "repeat(auto-fill, minmax(min(245px, 100%), 1fr))",
                 gap: "16px",
               }}
             >
@@ -718,7 +733,7 @@ export const Dashboard = ({
                           style={{
                             fontSize: "0.82rem",
                             fontWeight: 700,
-                            color: "#10b981",
+                            color: "var(--status-completed-fg)",
                           }}
                         >
                           {uPct}%
@@ -741,19 +756,19 @@ export const Dashboard = ({
                             <div
                               style={{
                                 width: `${(uDone / uTotal) * 100}%`,
-                                background: "#10b981",
+                                background: "var(--status-completed-fill)",
                               }}
                             />
                             <div
                               style={{
                                 width: `${(uProg / uTotal) * 100}%`,
-                                background: "#3b82f6",
+                                background: "var(--status-progress-fill)",
                               }}
                             />
                             <div
                               style={{
                                 width: `${(uPend / uTotal) * 100}%`,
-                                background: "#f59e0b",
+                                background: "var(--status-pending-fill)",
                               }}
                             />
                           </>
@@ -772,15 +787,22 @@ export const Dashboard = ({
                         }}
                       >
                         <li>
-                          Done: <strong style={{ color: "#10b981" }}>{uDone}</strong>
+                          Done:{" "}
+                          <strong style={{ color: "var(--status-completed-fg)" }}>
+                            {uDone}
+                          </strong>
                         </li>
                         <li>
                           Active:{" "}
-                          <strong style={{ color: "#3b82f6" }}>{uProg}</strong>
+                          <strong style={{ color: "var(--status-progress-fg)" }}>
+                            {uProg}
+                          </strong>
                         </li>
                         <li>
                           Pending:{" "}
-                          <strong style={{ color: "#f59e0b" }}>{uPend}</strong>
+                          <strong style={{ color: "var(--status-pending-fg)" }}>
+                            {uPend}
+                          </strong>
                         </li>
                       </ul>
                     </TiltCard>

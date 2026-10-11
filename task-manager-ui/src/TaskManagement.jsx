@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { smartApiRequest } from "./api";
 import {
   ConfettiBurst,
@@ -11,22 +11,32 @@ const STATUS_META = {
   pending: {
     label: "Pending",
     color: "#f59e0b",
-    bg: "rgba(245, 158, 11, 0.14)",
-    border: "rgba(245, 158, 11, 0.35)",
+    // Theme-aware AA tokens: text on tinted pills, solid chip fill, bar fill
+    text: "var(--status-pending-fg)",
+    solid: "var(--status-pending-solid)",
+    fill: "var(--status-pending-fill)",
+    bg: "var(--status-pending-bg)",
+    border: "var(--status-pending-border)",
     progress: 18,
   },
   "in-progress": {
     label: "In-Progress",
     color: "#3b82f6",
-    bg: "rgba(59, 130, 246, 0.14)",
-    border: "rgba(59, 130, 246, 0.35)",
+    text: "var(--status-progress-fg)",
+    solid: "var(--status-progress-solid)",
+    fill: "var(--status-progress-fill)",
+    bg: "var(--status-progress-bg)",
+    border: "var(--status-progress-border)",
     progress: 58,
   },
   completed: {
     label: "Completed",
     color: "#10b981",
-    bg: "rgba(16, 185, 129, 0.14)",
-    border: "rgba(16, 185, 129, 0.35)",
+    text: "var(--status-completed-fg)",
+    solid: "var(--status-completed-solid)",
+    fill: "var(--status-completed-fill)",
+    bg: "var(--status-completed-bg)",
+    border: "var(--status-completed-border)",
     progress: 100,
   },
 };
@@ -83,6 +93,9 @@ export const TaskManagement = ({
   const [dragOverCol, setDragOverCol] = useState(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const [confettiTrigger, setConfettiTrigger] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const deleteTriggerRef = useRef(null);
+  const cancelDeleteRef = useRef(null);
 
   const limit = displayMode === "kanban" ? 30 : 9;
 
@@ -139,8 +152,41 @@ export const TaskManagement = ({
     fetchTasks();
   }, [token, filterStatus, sortOrder, searchTerm, currentPage, displayMode]);
 
+  // Accessible modal behaviour: focus in, Escape to close, restore focus,
+  // and stop the page behind the dialog from scrolling (WCAG 2.4.3 / 1.4.13).
+  useEffect(() => {
+    if (!confirmDeleteId) return undefined;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const previouslyFocused =
+      deleteTriggerRef.current || document.activeElement || null;
+    const focusTimer = setTimeout(() => cancelDeleteRef.current?.focus(), 40);
+
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        event.stopPropagation();
+        setConfirmDeleteId(null);
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      clearTimeout(focusTimer);
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+      if (previouslyFocused && typeof previouslyFocused.focus === "function") {
+        previouslyFocused.focus();
+      }
+    };
+  }, [confirmDeleteId]);
+
   const handleCreateOrUpdateTask = async (e) => {
     e.preventDefault();
+    // Guard against duplicate submissions from rapid repeated clicks / Enter
+    if (isSaving) return;
+    setIsSaving(true);
     try {
       const method = editingTask ? "PUT" : "POST";
       const path = editingTask
@@ -186,6 +232,8 @@ export const TaskManagement = ({
         } the task.`,
         "error"
       );
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -339,6 +387,9 @@ export const TaskManagement = ({
           <div
             style={{
               display: "inline-flex",
+              flexWrap: "wrap",
+              justifyContent: "center",
+              maxWidth: "100%",
               padding: "4px",
               borderRadius: "14px",
               background: "var(--bg-input)",
@@ -363,6 +414,8 @@ export const TaskManagement = ({
                     cursor: "pointer",
                     fontSize: "0.8rem",
                     fontWeight: 700,
+                    whiteSpace: "nowrap",
+                    minHeight: "32px",
                     background: active
                       ? "linear-gradient(135deg, var(--accent-primary), var(--accent-secondary))"
                       : "transparent",
@@ -470,7 +523,7 @@ export const TaskManagement = ({
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+                gridTemplateColumns: "repeat(auto-fit, minmax(min(240px, 100%), 1fr))",
                 gap: "16px",
                 marginBottom: "16px",
               }}
@@ -566,8 +619,16 @@ export const TaskManagement = ({
                   Cancel Edit
                 </button>
               )}
-              <button type="submit" className="btn-primary-animated">
-                {editingTask ? "Save Task Changes" : "Add Task to Workspace"}
+              <button
+                type="submit"
+                className="btn-primary-animated"
+                disabled={isSaving}
+              >
+                {isSaving
+                  ? "Saving..."
+                  : editingTask
+                  ? "Save Task Changes"
+                  : "Add Task to Workspace"}
               </button>
             </div>
           </form>
@@ -630,11 +691,13 @@ export const TaskManagement = ({
                     setFilterStatus(tab.id);
                     setCurrentPage(1);
                   }}
+                  aria-pressed={active}
                   style={{
                     display: "inline-flex",
                     alignItems: "center",
                     gap: "7px",
                     padding: "7px 13px",
+                    minHeight: "30px",
                     borderRadius: "9999px",
                     fontSize: "0.8rem",
                     fontWeight: 700,
@@ -710,7 +773,8 @@ export const TaskManagement = ({
                 type="text"
                 id="searchTerm"
                 className="input-animated"
-                style={{ padding: "8px 32px 8px 13px", fontSize: "0.84rem" }}
+                aria-label="Search tasks by title or description"
+                style={{ padding: "8px 40px 8px 13px", fontSize: "0.84rem" }}
                 placeholder="Search title or description..."
                 value={searchTerm}
                 onChange={(e) => {
@@ -725,19 +789,24 @@ export const TaskManagement = ({
                     setSearchTerm("");
                     setCurrentPage(1);
                   }}
+                  className="mini-action"
+                  aria-label="Clear search"
                   style={{
                     position: "absolute",
-                    right: "8px",
+                    right: "4px",
                     top: "50%",
                     transform: "translateY(-50%)",
+                    width: "28px",
+                    height: "28px",
                     background: "none",
                     border: "none",
                     color: "var(--text-muted)",
                     cursor: "pointer",
                     fontSize: "0.9rem",
+                    borderRadius: "8px",
                   }}
                 >
-                  ✕
+                  <span aria-hidden="true">✕</span>
                 </button>
               )}
             </div>
@@ -745,8 +814,10 @@ export const TaskManagement = ({
             <select
               id="sortOrder"
               className="input-animated"
+              aria-label="Sort tasks"
               style={{
                 width: "auto",
+                maxWidth: "100%",
                 padding: "8px 12px",
                 fontSize: "0.84rem",
               }}
@@ -770,7 +841,7 @@ export const TaskManagement = ({
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+            gridTemplateColumns: "repeat(auto-fill, minmax(min(280px, 100%), 1fr))",
             gap: "20px",
           }}
         >
@@ -856,7 +927,7 @@ export const TaskManagement = ({
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(275px, 1fr))",
+            gridTemplateColumns: "repeat(auto-fit, minmax(min(275px, 100%), 1fr))",
             gap: "18px",
             alignItems: "start",
           }}
@@ -987,20 +1058,36 @@ export const TaskManagement = ({
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "space-between",
+                          flexWrap: "wrap",
                           gap: "6px",
+                          rowGap: "8px",
                           paddingTop: "8px",
                           borderTop: "1px solid var(--border-subtle)",
                         }}
                       >
-                        <div style={{ display: "flex", gap: "4px" }}>
+                        <div
+                          style={{
+                            display: "flex",
+                            flexWrap: "wrap",
+                            gap: "4px",
+                          }}
+                        >
                           {["pending", "in-progress", "completed"].map((st) => (
                             <button
                               key={st}
                               type="button"
                               onClick={() => handleQuickStatusChange(task, st)}
                               title={`Move to ${STATUS_META[st].label}`}
+                              aria-label={`${STATUS_META[st].label.slice(
+                                0,
+                                4
+                              )} — move "${task.title}" to ${
+                                STATUS_META[st].label
+                              }`}
+                              aria-pressed={task.status === st}
+                              className="mini-action"
                               style={{
-                                padding: "3px 8px",
+                                padding: "4px 8px",
                                 borderRadius: "6px",
                                 fontSize: "0.68rem",
                                 fontWeight: 700,
@@ -1008,7 +1095,7 @@ export const TaskManagement = ({
                                 cursor: "pointer",
                                 background:
                                   task.status === st
-                                    ? STATUS_META[st].color
+                                    ? STATUS_META[st].solid
                                     : "rgba(148, 163, 184, 0.14)",
                                 color:
                                   task.status === st
@@ -1025,27 +1112,38 @@ export const TaskManagement = ({
                           <button
                             type="button"
                             onClick={() => startEdit(task)}
+                            aria-label={`Edit "${task.title}"`}
+                            className="mini-action"
                             style={{
                               background: "none",
                               border: "none",
-                              color: "var(--accent-primary)",
+                              color: "var(--link-accent)",
                               fontSize: "0.75rem",
                               fontWeight: 700,
                               cursor: "pointer",
+                              padding: "4px 6px",
+                              borderRadius: "6px",
                             }}
                           >
                             Edit
                           </button>
                           <button
                             type="button"
-                            onClick={() => setConfirmDeleteId(task._id)}
+                            onClick={() => {
+                              deleteTriggerRef.current = document.activeElement;
+                              setConfirmDeleteId(task._id);
+                            }}
+                            aria-label={`Delete "${task.title}"`}
+                            className="mini-action"
                             style={{
                               background: "none",
                               border: "none",
-                              color: "var(--accent-rose)",
+                              color: "var(--danger-fg)",
                               fontSize: "0.75rem",
                               fontWeight: 700,
                               cursor: "pointer",
+                              padding: "4px 6px",
+                              borderRadius: "6px",
                             }}
                           >
                             Delete
@@ -1159,7 +1257,7 @@ export const TaskManagement = ({
                           fontSize: "0.72rem",
                           fontWeight: 700,
                           background: meta.bg,
-                          color: meta.color,
+                          color: meta.text,
                         }}
                       >
                         {meta.label}
@@ -1181,18 +1279,28 @@ export const TaskManagement = ({
                       type="button"
                       onClick={() => startEdit(task)}
                       className="btn-secondary-animated"
-                      style={{ padding: "6px 12px", fontSize: "0.78rem" }}
+                      aria-label={`Edit "${task.title}"`}
+                      style={{
+                        padding: "6px 12px",
+                        minHeight: "34px",
+                        fontSize: "0.78rem",
+                      }}
                     >
                       Edit
                     </button>
                     <button
                       type="button"
-                      onClick={() => setConfirmDeleteId(task._id)}
+                      onClick={() => {
+                        deleteTriggerRef.current = document.activeElement;
+                        setConfirmDeleteId(task._id);
+                      }}
                       className="btn-secondary-animated"
+                      aria-label={`Delete "${task.title}"`}
                       style={{
                         padding: "6px 12px",
+                        minHeight: "34px",
                         fontSize: "0.78rem",
-                        color: "var(--accent-rose)",
+                        color: "var(--danger-fg)",
                       }}
                     >
                       Delete
@@ -1210,7 +1318,7 @@ export const TaskManagement = ({
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(285px, 1fr))",
+            gridTemplateColumns: "repeat(auto-fill, minmax(min(285px, 100%), 1fr))",
             gap: "20px",
           }}
         >
@@ -1253,7 +1361,7 @@ export const TaskManagement = ({
                         fontSize: "0.75rem",
                         fontWeight: 700,
                         background: meta.bg,
-                        color: meta.color,
+                        color: meta.text,
                         border: `1px solid ${meta.border}`,
                         textTransform: "capitalize",
                       }}
@@ -1332,7 +1440,7 @@ export const TaskManagement = ({
                         className="liquid-progress-fill"
                         style={{
                           width: `${meta.progress}%`,
-                          background: meta.color,
+                          background: meta.fill,
                         }}
                       />
                     </div>
@@ -1364,8 +1472,11 @@ export const TaskManagement = ({
                         style={{
                           padding: "7px 12px",
                           fontSize: "0.76rem",
+                          minHeight: "34px",
                           color:
-                            task.status === "pending" ? "#3b82f6" : "#10b981",
+                            task.status === "pending"
+                              ? "var(--status-progress-fg)"
+                              : "var(--status-completed-fg)",
                         }}
                       >
                         {task.status === "pending"
@@ -1380,6 +1491,7 @@ export const TaskManagement = ({
                         style={{
                           padding: "7px 12px",
                           fontSize: "0.76rem",
+                          minHeight: "34px",
                           color: "var(--text-secondary)",
                         }}
                       >
@@ -1392,18 +1504,28 @@ export const TaskManagement = ({
                         type="button"
                         onClick={() => startEdit(task)}
                         className="btn-secondary-animated"
-                        style={{ padding: "7px 12px", fontSize: "0.76rem" }}
+                        aria-label={`Edit "${task.title}"`}
+                        style={{
+                          padding: "7px 12px",
+                          minHeight: "34px",
+                          fontSize: "0.76rem",
+                        }}
                       >
                         Edit
                       </button>
                       <button
                         type="button"
-                        onClick={() => setConfirmDeleteId(task._id)}
+                        onClick={() => {
+                          deleteTriggerRef.current = document.activeElement;
+                          setConfirmDeleteId(task._id);
+                        }}
                         className="btn-secondary-animated"
+                        aria-label={`Delete "${task.title}"`}
                         style={{
                           padding: "7px 12px",
+                          minHeight: "34px",
                           fontSize: "0.76rem",
-                          color: "var(--accent-rose)",
+                          color: "var(--danger-fg)",
                         }}
                       >
                         Delete
@@ -1420,6 +1542,9 @@ export const TaskManagement = ({
       {/* Custom Glassmorphic Delete Confirmation Modal */}
       {confirmDeleteId && (
         <div
+          onClick={(event) => {
+            if (event.target === event.currentTarget) setConfirmDeleteId(null);
+          }}
           style={{
             position: "fixed",
             inset: 0,
@@ -1433,6 +1558,10 @@ export const TaskManagement = ({
           }}
         >
           <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-task-modal-title"
+            aria-describedby="delete-task-modal-desc"
             className="surface-card page-transition-enter"
             style={{
               maxWidth: "400px",
@@ -1442,6 +1571,7 @@ export const TaskManagement = ({
             }}
           >
             <h3
+              id="delete-task-modal-title"
               className="font-display"
               style={{
                 fontSize: "1.25rem",
@@ -1452,6 +1582,7 @@ export const TaskManagement = ({
               Remove this task?
             </h3>
             <p
+              id="delete-task-modal-desc"
               style={{
                 color: "var(--text-secondary)",
                 fontSize: "0.9rem",
@@ -1469,6 +1600,7 @@ export const TaskManagement = ({
             >
               <button
                 type="button"
+                ref={cancelDeleteRef}
                 onClick={() => setConfirmDeleteId(null)}
                 className="btn-secondary-animated"
               >
